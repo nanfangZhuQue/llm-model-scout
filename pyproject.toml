@@ -1,0 +1,45 @@
+[build-system]
+requires = ["hatchling>=1.26,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "llm-model-scout"
+version = "0.6.1"
+description = "Evidence-based OpenAI and Anthropic compatible endpoint scanner"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["httpx[socks]>=0.28,<0.29", "typer>=0.15,<1", "openpyxl>=3.1,<4"]
+
+[project.optional-dependencies]
+secure-store = ["keyring>=25,<26", "cryptography>=45,<51"]
+browser = ["playwright>=1.50,<2"]
+agent = ["fastapi>=0.115,<1", "uvicorn>=0.34,<1"]
+dev = ["pytest>=8,<9", "pytest-asyncio>=0.25,<2", "ruff>=0.9,<1", "build>=1.2,<2", "trustme>=1.2,<2", "fastapi>=0.115,<1", "uvicorn>=0.34,<1"]
+
+[project.scripts]
+model-scout = "llm_model_scout.cli:app"
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/.gitignore", "/src", "/tests", "/examples", "/scripts", "/start-web.bat", "/start-cli.bat", "/README.md", "/pyproject.toml",
+  "/docs/README.md", "/docs/requirements", "/docs/design", "/docs/user-guide",
+  "/docs/development", "/docs/archive/README.md", "/.github/workflows/tests.yml",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/llm_model_scout"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["typer.Option"]

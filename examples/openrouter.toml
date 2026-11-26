@@ -1,0 +1,16 @@
+# Public endpoint example; set OPENROUTER_API_KEY in the launching process.
+[[providers]]
+name = "openrouter"
+concurrency = 2
+retries = 0
+max_requests = 20
+max_models = 1000
+scan_timeout = 45
+
+[[providers.endpoints]]
+id = "openai"
+protocol = "openai_chat"
+base_url = "https://openrouter.ai/api/v1"
+api_key_env = "OPENROUTER_API_KEY"
+profile = "chat-basic"
+max_tokens = 256

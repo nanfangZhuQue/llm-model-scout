@@ -1,0 +1,49 @@
+# Python 环境、缓存与构建产物
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# .scout 本地运行状态与会话文件
+.scout/
+# 自定义本机数据目录及加密数据库（默认数据在用户 AppData，不在项目内）
+/data/
+*.sqlite3
+*.sqlite3-*
+
+# 导出文件与扫描报告（含 Key 的导出不得上传）
+*.private.json
+provider-*.json
+report*.json
+report*.csv
+/exports/
+/reports/
+
+# 本地凭据配置（保留示例配置）
+*.token
+.env
+.env.*
+!.env.example
+!.env.sample
+providers.local.toml
+models.local.txt
+*.local.toml
+.claude/settings.local.json
+/.mcp.json
+/opencode.json
+
+# 浏览器自动化产物
+.playwright-mcp/
+/playwright-report/
+/test-results/
+
+# 项目截图
+/error-images/

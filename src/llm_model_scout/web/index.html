@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Model Scout</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/ui/app.css">
+  <script src="/ui/providers.js" defer></script>
+  <script src="/ui/app.js" defer></script>
+</head>
+<body>
+  <header class="masthead">
+    <a class="brand" href="/" aria-label="Model Scout 首页"><span class="monogram">MS</span><span>Model Scout<small>本地模型验证工作台</small></span></a>
+    <div class="header-actions"><span id="connection-state" class="connection">未连接</span><button id="theme-toggle" type="button" class="quiet">切换主题</button><button id="logout" type="button" class="quiet" hidden>退出连接</button></div>
+  </header>
+  <main class="page">
+    <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+    <section id="login-panel" class="welcome" aria-labelledby="login-title">
+      <div class="intro"><span class="eyebrow">本地运行 · 按协议验证</span><h1 id="login-title">从模型列表，<br>走到调用证据。</h1><p>按入口验证模型能力，记录成功、失败与未完成的结果。</p><div class="protocols"><span>OpenAI Chat</span><span>Anthropic Messages</span><span>OpenAI Responses</span></div><p class="small">服务商信息自动加密保存在本机，普通结果与日志不显示 Key。</p></div>
+      <form id="login-form" class="login-card"><h2>连接本地 Agent</h2><p>从启动窗口显示的 <code>token_file</code> 路径读取会话 Token；它不是服务商 API Key。</p><label for="agent-token">Agent 会话 Token</label><input id="agent-token" type="password" required minlength="32" maxlength="256" autocomplete="off" spellcheck="false" placeholder="不是服务商 API Key"><button id="connect" type="submit" class="primary">连接工作台</button><p class="small">仅保存在当前页面内存。刷新或退出后需重新连接。</p></form>
+    </section>
+    <div id="workspace" hidden>
+      <div class="page-heading"><div><span class="eyebrow">扫描控制台</span><h1>验证当前入口的可用性</h1></div><button id="refresh" type="button" class="quiet">立即刷新</button></div>
+      <div class="work-grid">
+        <section class="panel configure" aria-labelledby="configure-title">
+          <div class="section-title"><h2 id="configure-title">新建扫描</h2><span class="small">本机保存的服务商</span></div>
+          <form id="scan-form">
+            <label for="scan-mode">验收方式</label><select id="scan-mode"><option value="batch">批量验收</option><option value="quick">验证指定模型</option></select>
+            <label for="capability">探测能力</label><select id="capability" aria-describedby="capability-note"><option value="text">非流式文本</option><option value="stream">流式文本</option><option value="structured">结构化输出</option><option value="tool">工具调用</option></select>
+            <p id="capability-note" class="small">新建扫描和目录验收共用此设置。<span id="tool-capability-note" hidden>工具调用只校验返回的指令，收到后结束。</span></p>
+            <label for="provider">服务商</label><select id="provider" required></select>
+            <div id="provider-actions" class="actions" hidden><button id="new-provider" type="button" class="quiet">新增服务商</button><button id="edit-provider" type="button" class="quiet">编辑</button><button id="export-provider" type="button" class="quiet">导出配置</button></div>
+            <label for="endpoint">协议入口</label><select id="endpoint" required></select>
+            <button id="discover-models" type="button" class="quiet">一键获取模型</button>
+            <p id="provider-info" class="small config-note"></p>
+            <div id="batch-model-source"><label for="model-mode">模型来源</label><select id="model-mode"><option value="configured">沿用配置 / 自动发现</option><option value="manual">手动模型列表</option></select></div>
+            <div id="manual-models" hidden><label for="models">模型 ID（每行一个）</label><textarea id="models" rows="4" maxlength="65000" placeholder="填写服务商实际提供的 model ID" spellcheck="false"></textarea><p class="small">保留大小写，忽略空行并去重。不根据名称猜协议。</p></div>
+            <div id="quick-model-field" hidden><label for="quick-model">指定模型 ID</label><input id="quick-model" spellcheck="false" autocomplete="off" placeholder="填写已知模型 ID"><p class="small">直接验证此模型，请求预算 1 次，重试 0 次。</p></div>
+            <label for="profile">探测配置</label><select id="profile"><option value="">沿用入口配置</option><option value="baseline">baseline · 1 token / temperature 0</option><option value="chat-basic">chat-basic · 16 tokens</option></select>
+            <div class="form-pair"><div><label for="max-tokens">Token 上限</label><input id="max-tokens" type="number" min="1" max="65536" step="1" placeholder="沿用配置"></div><div id="request-budget-field"><label for="max-requests">请求预算</label><input id="max-requests" type="number" min="1" step="1" placeholder="沿用配置"></div></div>
+            <label for="scan-timeout">任务截止时间（秒）</label><input id="scan-timeout" type="number" min="0.001" step="any" placeholder="沿用配置">
+            <section class="budget-preview" aria-labelledby="scan-preview-title">
+              <h3 id="scan-preview-title">请求预算预览</h3>
+              <div id="scan-preview" class="small" role="status"></div>
+            </section>
+            <p class="small">提交后会发起真实请求，可能产生费用。请求预算包含发现与重试。</p>
+            <button id="create-scan" type="submit" class="primary">创建扫描任务</button>
+          </form>
+        </section>
+        <section class="panel tasks" aria-labelledby="tasks-title">
+          <div class="section-title"><h2 id="tasks-title">任务记录</h2><span id="task-count" class="small">0 个任务</span></div>
+          <div id="task-filter" hidden><label for="task-provider">按服务商筛选任务</label><select id="task-provider"><option value="">全部服务商</option></select></div>
+          <div id="task-list" class="task-list"></div>
+          <div class="pagination"><button id="previous-page" type="button" class="quiet" disabled>上一页</button><span id="page-info" class="small">第 1 页</span><button id="next-page" type="button" class="quiet" disabled>下一页</button></div>
+          <div class="task-detail">
+            <h3>当前任务</h3><p id="selection-title" class="mono" tabindex="-1">选择任务查看状态与结果</p><p id="selection-state">尚未选择任务</p><p id="selection-capability" class="small" hidden></p>
+            <div id="progress-block" hidden>
+              <p id="selection-progress" class="small"></p>
+              <div id="progress-track" class="progress-track" role="progressbar" aria-label="验证进度" aria-valuemin="0" hidden><div id="progress-bar" class="progress-fill"></div></div>
+              <p id="progress-text" class="small"></p>
+            </div>
+            <p id="selection-error" class="detail-error" hidden></p>
+            <p id="selection-partial" class="small" hidden>部分报告，仅包含已保存的发现和模型结果。</p>
+            <div id="selection-source" hidden>
+              <p id="selection-source-label" class="small"></p>
+              <div class="actions"><button id="open-source-baseline" type="button" class="quiet">查看基准任务</button><button id="open-source-current" type="button" class="quiet">查看本次任务</button></div>
+            </div>
+            <div class="actions"><button id="cancel-scan" type="button" class="danger" disabled>取消扫描</button><button id="download-json" type="button" class="quiet" disabled>下载 JSON</button><button id="download-xlsx" type="button" class="quiet" disabled>下载 XLSX（全部）</button><button id="download-passed" type="button" class="quiet" disabled>下载 XLSX（仅通过）</button></div>
+            <div class="actions"><button id="compare-baseline" type="button" class="quiet" aria-pressed="false" disabled>设为基准</button><button id="compare-current" type="button" class="quiet" aria-pressed="false" disabled>设为本次</button></div>
+          </div>
+        </section>
+      </div>
+      <section id="compare-panel" class="panel results" aria-labelledby="compare-title" hidden>
+        <div class="section-title"><h2 id="compare-title" tabindex="-1">扫描对比</h2><button id="clear-compare" type="button" class="quiet">清除对比</button></div>
+        <dl class="compare-pair">
+          <div><dt>基准任务</dt><dd id="compare-baseline-label" class="mono"></dd></div>
+          <div><dt>本次任务</dt><dd id="compare-current-label" class="mono"></dd></div>
+        </dl>
+        <div id="compare-endpoint-field" hidden><label for="compare-endpoint">对比协议入口</label><select id="compare-endpoint"></select></div>
+        <p id="compare-message" class="small" role="status"></p>
+        <div id="compare-result" hidden>
+          <dl class="compare-pair">
+            <div><dt>探测条件</dt><dd id="compare-conditions"></dd><dd id="compare-credentials" class="small"></dd></div>
+            <div><dt>目录覆盖</dt><dd id="compare-catalog"></dd><dd id="compare-catalog-status" class="small"></dd></div>
+          </dl>
+          <ul id="compare-condition-changes" class="compare-condition-changes" hidden></ul>
+          <div class="compare-toolbar">
+            <div><label for="compare-model">搜索对比模型</label><input id="compare-model" type="search" placeholder="按模型 ID 查找" autocomplete="off"></div>
+            <div><label for="compare-filter">对比结果筛选</label><select id="compare-filter"><option value="">全部结果</option><option value="regressed">通过转为未通过</option><option value="recovered">未通过转为通过</option><option value="not_tested">未测目标</option><option value="catalog">目录变化</option><option value="conditions_changed">探测条件变化</option><option value="conditions_unknown">探测条件无法确认</option></select></div>
+            <p id="compare-count" class="small"></p>
+          </div>
+          <div class="actions">
+            <button id="start-retest" type="button" class="primary" disabled>复测所选</button>
+            <button id="clear-retest-models" type="button" class="quiet" disabled>清空勾选</button>
+            <span id="retest-count" class="small"></span>
+          </div>
+          <p id="retest-message" class="small" role="status" hidden></p>
+          <div id="retest-confirmation" hidden>
+            <ul id="retest-connection-changes" class="compare-condition-changes"></ul>
+            <button id="confirm-retest" type="button" class="primary">确认使用当前连接复测</button>
+          </div>
+          <p id="compare-empty" class="empty" hidden>没有匹配的模型记录。</p>
+          <div id="compare-table-wrap" class="table-wrap" tabindex="0" aria-label="模型对比表，可横向滚动" hidden>
+            <table class="compare-table"><thead><tr><th scope="col">复测</th><th scope="col">模型</th><th scope="col">基准结果</th><th scope="col">本次结果</th><th scope="col">验证变化</th><th scope="col">目录变化</th></tr></thead><tbody id="compare-rows"></tbody></table>
+          </div>
+        </div>
+      </section>
+      <section id="catalog-panel" class="panel results" hidden><div class="section-title"><h2>模型候选列表</h2><span id="catalog-count" class="small"></span></div><p id="catalog-status" class="small"></p><div class="catalog-header"><label for="catalog-search">筛选候选模型</label><input id="catalog-search" type="search" placeholder="输入模型名称"><div id="catalog-protocol-field" hidden><label for="catalog-protocol">候选协议</label><select id="catalog-protocol"></select></div><div class="actions"><button id="catalog-all" type="button" class="quiet">全选匹配模型</button><button id="catalog-none" type="button" class="quiet">清空选择</button></div></div><div id="catalog-list" class="catalog-list"></div>
+        <div class="form-pair catalog-budgets">
+          <section class="budget-preview" aria-labelledby="selected-preview-title"><h3 id="selected-preview-title">所选模型预算</h3><div id="selected-preview" class="small" role="status"></div><button id="catalog-test" type="button" class="primary">测试所选模型</button></section>
+          <section class="budget-preview" aria-labelledby="all-preview-title"><h3 id="all-preview-title">重新发现预算</h3><div id="all-preview" class="small" role="status"></div><button id="catalog-test-all" type="button" class="quiet">测试全部（重新发现）</button></section>
+        </div>
+      </section>
+      <section class="panel results" aria-labelledby="results-title">
+        <div class="section-title"><h2 id="results-title">模型验证结果</h2><span id="result-count" class="small">0 条结果</span></div>
+        <div class="filters"><div class="search"><label for="search">搜索模型 ID</label><input id="search" type="search" placeholder="按模型 ID 查找" autocomplete="off"></div><div><label for="filter-protocol">协议</label><select id="filter-protocol"><option value="">全部协议</option><option value="openai_chat">OpenAI Chat</option><option value="anthropic_messages">Anthropic Messages</option><option value="openai_responses">OpenAI Responses</option></select></div><div><label for="filter-status">状态</label><select id="filter-status"><option value="">全部状态</option><option value="available">通过</option><option value="unavailable">未通过</option><option value="skipped">未执行</option><option value="cancelled">已取消</option></select></div><div><label for="filter-error">错误类别</label><select id="filter-error"><option value="">全部类别</option></select></div></div>
+        <p id="results-empty" class="empty">选择一个任务。报告形成后可筛选结果；运行中可先查看上方进度。</p>
+        <div id="table-wrap" class="table-wrap" tabindex="0" aria-label="模型验证结果表，可横向滚动" hidden><table><thead><tr><th>模型 / 入口</th><th>状态</th><th>HTTP</th><th>错误 / 诊断</th><th>最后尝试</th><th>实际尝试次数</th></tr></thead><tbody id="result-rows"></tbody></table></div>
+        <p class="small footnote">通过结果适用于本次探测能力和条件。下载全部结果会包含报告中已保存的所有记录。</p>
+      </section>
+    </div>
+    <dialog id="provider-dialog"><form id="provider-form"><div class="section-title"><h2 id="provider-title">新增服务商</h2><button id="close-provider" type="button" class="quiet">关闭</button></div><p class="small">保存后自动加密保存在本机，下次启动恢复。Key不会在列表或普通报告中显示。</p><label for="provider-name">服务商名称</label><input id="provider-name" required maxlength="80">
+      <label class="check-label"><input id="enable-openai" type="checkbox" checked> OpenAI Chat 兼容接口</label><fieldset id="fields-openai"><label for="url-openai">Base URL（OpenAI Chat）</label><input id="url-openai" type="url" placeholder="https://openrouter.ai/api/v1"><label for="key-openai">API Key（OpenAI Chat）</label><input id="key-openai" type="password" autocomplete="new-password" maxlength="4096"><label for="proxy-openai">代理URL（可选，HTTP / HTTPS / SOCKS5）</label><input id="proxy-openai" type="password" autocomplete="off" placeholder="留空：新增不使用，编辑保留原代理"><label class="check-label"><input id="clear-proxy-openai" type="checkbox"> 清除已有代理</label></fieldset>
+      <label class="check-label"><input id="enable-anthropic" type="checkbox"> Anthropic 兼容接口</label><fieldset id="fields-anthropic" disabled hidden><label for="url-anthropic">Base URL（Anthropic）</label><input id="url-anthropic" type="url"><label for="key-anthropic">API Key（Anthropic）</label><input id="key-anthropic" type="password" autocomplete="new-password" maxlength="4096"><label for="proxy-anthropic">代理URL（可选）</label><input id="proxy-anthropic" type="password" autocomplete="off" placeholder="留空：新增不使用，编辑保留原代理"><label class="check-label"><input id="clear-proxy-anthropic" type="checkbox"> 清除已有代理</label></fieldset>
+      <label class="check-label"><input id="enable-responses" type="checkbox"> OpenAI Responses 兼容接口</label><fieldset id="fields-responses" disabled hidden><label for="url-responses">Base URL（OpenAI Responses）</label><input id="url-responses" type="url" placeholder="https://api.openai.com/v1"><label for="key-responses">API Key（OpenAI Responses）</label><input id="key-responses" type="password" autocomplete="new-password" maxlength="4096"><label for="proxy-responses">代理URL（可选）</label><input id="proxy-responses" type="password" autocomplete="off" placeholder="留空：新增不使用，编辑保留原代理"><label class="check-label"><input id="clear-proxy-responses" type="checkbox"> 清除已有代理</label></fieldset>
+      <p id="provider-form-error" class="detail-error" role="status"></p><div class="actions"><button id="save-provider" type="submit" class="primary">保存到本机</button><button id="delete-provider" type="button" class="danger" hidden>删除服务商</button></div></form></dialog>
+    <dialog id="export-dialog"><h2>导出当前服务商配置</h2><p>普通测试报告仍然脱敏，此处单独导出连接配置。</p><label class="check-label"><input id="export-secrets" type="checkbox"> 包含 API Key 和代理密码</label><p class="detail-error">勾选后文件包含明文密钥，只应保存在可信位置，不要上传云仓库。</p><div class="actions"><button id="confirm-export" type="button" class="primary">确认并下载</button><button id="close-export" type="button" class="quiet">取消</button></div></dialog>
+    <footer><span id="version">Model Scout</span><span>仅连接当前同源 Agent · 不使用外部资源</span></footer>
+  </main>
+</body>
+</html>

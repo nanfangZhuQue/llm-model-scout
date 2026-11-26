@@ -1,0 +1,32 @@
+[[providers]]
+name = "vendor-a"
+concurrency = 10
+timeout = 30
+retries = 2
+max_requests = 100
+
+[[providers.endpoints]]
+id = "openai"
+protocol = "openai_chat"
+base_url = "https://provider.example/openai/v1"
+api_key_env = "VENDOR_KEY"
+# models_file = "models.txt"
+# proxy = "socks5://127.0.0.1:1080"
+
+[[providers.endpoints]]
+id = "anthropic"
+protocol = "anthropic_messages"
+base_url = "https://provider.example/anthropic/v1"
+api_key_env = "VENDOR_KEY"
+api_version = "2023-06-01"
+# profile = "chat-basic"
+# max_tokens = 128  # Explicit override; may increase cost. No automatic escalation.
+# proxy_env = "VENDOR_PROXY"
+
+# Optional independent Responses endpoint. Uncomment to enable it.
+# [[providers.endpoints]]
+# id = "responses"
+# protocol = "openai_responses"
+# base_url = "https://provider.example/openai/v1"
+# api_key_env = "VENDOR_KEY"
+# max_tokens = 256
